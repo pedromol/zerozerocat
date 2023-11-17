@@ -1,0 +1,26 @@
+{
+  "name": "zerozerocat",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "configure": "node node_modules/@u4/opencv4nodejs/bin/install.js configure",
+    "build": "node node_modules/@u4/opencv4nodejs/bin/install.js build"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "opencv4nodejs": {
+    "disableAutoBuild": 1,
+    "opencvIncludeDir": "/usr/local/include/opencv4/",
+    "opencvLibDir": "/usr/local/lib/",
+    "opencvBinDir": "/usr/local/bin/"
+  },
+  "dependencies": {
+    "@aws-sdk/client-s3": "^3.451.0",
+    "@u4/opencv4nodejs": "^6.5.2",
+    "amqplib": "^0.10.3",
+    "node-telegram-bot-api": "^0.64.0"
+  }
+}
