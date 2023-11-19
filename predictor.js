@@ -4,28 +4,10 @@ const amqplib = require('amqplib');
 const cv = require('@u4/opencv4nodejs');
 const { S3Client, PutObjectCommand, GetObjectCommand } = require('@aws-sdk/client-s3');
 const TelegramBot = require('node-telegram-bot-api');
-
 const writeFile = util.promisify(fs.writeFile);
 
-const config = {
-  AMQP_CONNECTION: process.env['AMQP_CONNECTION'],
-  AMQP_TOPIC: process.env['AMQP_TOPIC'],
-  BUCKET_ACCESS_KEY_ID: process.env['BUCKET_ACCESS_KEY_ID'],
-  BUCKET_SECRET_ACCESS_KEY: process.env['BUCKET_SECRET_ACCESS_KEY'],
-  BUCKET_ENDPOINT: process.env['BUCKET_ENDPOINT'],
-  BUCKET_REGION: process.env['BUCKET_REGION'],
-  BUCKET_NAME: process.env['BUCKET_NAME'],
-  MIN_DETECTIONS: process.env['MIN_DETECTIONS'],
-  NAME_MAPPINGS: process.env['NAME_MAPPINGS']?.split(','),
-  TELEGRAM_TOKEN: process.env['TELEGRAM_TOKEN'],
-  TELEGRAM_CHAT: process.env['TELEGRAM_CHAT'],
-};
+const { config } = require('./config')
 
-Object.keys(config).forEach((key) => {
-  if (!config[key]) {
-    throw new Error('missing env ' + key);
-  }
-})
 
 const s3Client = new S3Client({
   credentials: {
@@ -34,6 +16,7 @@ const s3Client = new S3Client({
     endpoint: config.BUCKET_ENDPOINT,
   },
   s3ForcePathStyle: !!config.BUCKET_ENDPOINT,
+  forcePathStyle: !!config.BUCKET_ENDPOINT,
   sslEnabled: !config.BUCKET_ENDPOINT,
   region: config.BUCKET_REGION,
   accessKeyId: config.BUCKET_ACCESS_KEY_ID,
@@ -42,7 +25,6 @@ const s3Client = new S3Client({
 });
 
 const bot = new TelegramBot(config.TELEGRAM_TOKEN, { polling: false });
-
 
 const classifier = new cv.CascadeClassifier(cv.HAAR_FRONTALCATFACE_EXTENDED);
 
@@ -54,6 +36,16 @@ const listen = async () => {
     durable: false
   });
 
+  const ch2 = await conn.createChannel();
+  await ch2.assertQueue(config.AMQP_TOPIC_00_OUTPUT, {
+    durable: false
+  });
+
+  const ch3 = await conn.createChannel();
+  await ch3.assertQueue(config.AMQP_TOPIC_00_INPUT, {
+    durable: false
+  });
+
   ch1.consume(config.AMQP_TOPIC, (msg) => {
     if (msg !== null) {
       console.log('Processing');
@@ -62,10 +54,20 @@ const listen = async () => {
         .then(() => predict(msg.content))
         .then((rst) => upload(rst.image, rst.who == 'Multi' ? rst.who : 'identified', ts, rst.who))
         .then((img) => bot.sendPhoto(config.TELEGRAM_CHAT, img).catch(() => console.log('Failed to send telegram photo')))
-        .then(() => ch1.ack(msg));
+        .then(() => ch1.ack(msg))
+        .then(() => ch3.sendToQueue(config.AMQP_TOPIC_00_INPUT, Buffer.from(ts.toString(), 'utf-8')));
     } else {
       console.log('Consumer cancelled by server');
       process.exit(1);
+    }
+  });
+
+  ch2.consume(config.AMQP_TOPIC_00_OUTPUT, (msg) => {
+    if (msg !== null) {
+      console.log('Updating model');
+      getModel()
+        .then(file => writeFile('./model.yaml', file))
+        .then(() => ch2.ack(msg))
     }
   });
 };
@@ -131,7 +133,7 @@ const predict = async (img) => {
 const getModel = async () => {
   const cmd = new GetObjectCommand({
     Bucket: config.BUCKET_NAME,
-    Key: '/model/model.yaml'
+    Key: '/model/model.yaml',
   });
 
   return s3Client.send(cmd).then(r => new Response(r.Body).text());
