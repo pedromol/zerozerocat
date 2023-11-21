@@ -20,7 +20,7 @@
   "dependencies": {
     "@aws-sdk/client-s3": "^3.451.0",
     "@u4/opencv4nodejs": "^6.5.2",
-    "amqplib": "^0.10.3",
+    "fastify": "^4.24.3",
     "node-telegram-bot-api": "^0.64.0"
   }
 }

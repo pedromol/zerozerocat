@@ -1,41 +1,33 @@
 apiVersion: v1
 kind: Namespace
 metadata:
-  name: zerozerocat
+  name: catoso
   labels:
-    name: zerozerocat
+    name: catoso
 ---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
- name: zerozerocat-predictor
- namespace: zerozerocat
+ name: zerozerocat
+ namespace: catoso
 spec:
  replicas: 1
  selector:
    matchLabels:
-     app: zerozerocat-predictor
+     app: zerozerocat
  template:
    metadata:
      labels:
-       app: zerozerocat-predictor
+       app: zerozerocat
    spec:
      containers:
-       - name: zerozerocat-predictor
+       - name: zerozerocat
          image: pedromol/zerozerocat
          args:
-          - /app/predictor.js
+          - /app/index.js
          command:
           - node
          env:
-          - name: AMQP_CONNECTION
-            value : 'amqp://xxxx:xxxx@xxxx:xxxx'
-          - name: AMQP_TOPIC
-            value : 'catoso'
-          - name: AMQP_TOPIC_00_INPUT
-            value: 'zerozerocat-input'
-          - name: AMQP_TOPIC_00_OUTPUT
-            value: 'zerozerocat-output'
           - name: BUCKET_ACCESS_KEY_ID
             value : 'xxxxxxxx'
           - name: BUCKET_SECRET_ACCESS_KEY
@@ -54,58 +46,19 @@ spec:
             value : 'xxxxxxxx'
           - name: TELEGRAM_CHAT
             value : 'xxxxxx'
-     nodeSelector:
-       kubernetes.io/hostname: molpi
----
----
-apiVersion: apps/v1
-kind: Deployment
-metadata:
- name: zerozerocat-trainer
- namespace: zerozerocat
-spec:
- replicas: 1
- selector:
-   matchLabels:
-     app: zerozerocat-trainer
- template:
-   metadata:
-     labels:
-       app: zerozerocat-trainer
-   spec:
-     containers:
-       - name: zerozerocat-trainer
-         image: pedromol/zerozerocat
-         args:
-          - /app/trainer.js
-         command:
-          - node
-         env:
-          - name: AMQP_CONNECTION
-            value : 'amqp://xxxx:xxxx@xxxx:xxxx'
-          - name: AMQP_TOPIC
-            value : 'catoso'
-          - name: AMQP_TOPIC_00_INPUT
-            value: 'zerozerocat-input'
-          - name: AMQP_TOPIC_00_OUTPUT
-            value: 'zerozerocat-output'
-          - name: BUCKET_ACCESS_KEY_ID
-            value : 'xxxxxxxx'
-          - name: BUCKET_SECRET_ACCESS_KEY
-            value : 'xxxxxxx'
-          - name: BUCKET_ENDPOINT
-            value : 'http://xxxx.xxxx:xxxx/'
-          - name: BUCKET_REGION
-            value : 'us-east-1'
-          - name: BUCKET_NAME
-            value : 'zerozerocat'
-          - name: MIN_DETECTIONS
-            value : '5'
-          - name: NAME_MAPPINGS
-            value : 'xxxx,yyyy,zzzz'
-          - name: TELEGRAM_TOKEN
-            value : 'xxxxxxxx'
-          - name: TELEGRAM_CHAT
+          - name: HTTP_PORT
             value : 'xxxxxx'
-     nodeSelector:
-       kubernetes.io/hostname: molpi
+---
+apiVersion: v1
+kind: Service
+metadata:
+ name: zerozerocat
+ namespace: catoso
+ labels:
+   app: zerozerocat
+spec:
+ ports:
+ - port: 80
+   targetPort: 8080
+ selector:
+   app: zerozerocat
