@@ -53,7 +53,7 @@ const classifier = new cv.CascadeClassifier(cv.HAAR_FRONTALCATFACE_EXTENDED);
 const processPredict = async (path) => {
   console.log(`Processing prediction for ${path}`);
   const ts = path.split('/').at(-1).split('.').at(0);
-  const key = path.replace(cfg.BUCKET_NAME + '/', '');
+  const key = path.replace(config.BUCKET_NAME + '/', '');
   return download(key)
     .then(predict)
     .then((rst) => upload(rst.image, rst.who == 'Multi' ? rst.who : 'identified', ts, rst.who))
@@ -67,7 +67,7 @@ const processTrain = async () => {
     .then(getFiles)
     .then(p => Promise.all(p))
     .then(genModel)
-    .then(() => upload(fs.readFileSync('./trainer.yaml'), '/model/model.yaml'))
+    .then(() => uploadKey(fs.readFileSync('./trainer.yaml'), '/model/model.yaml'))
     .then(() => fs.rmSync(basePath, { recursive: true }))
     .then(() => fs.rmSync('./trainer.yaml'));
 };
@@ -76,12 +76,12 @@ const listen = async () => {
   const server = fastify({ logger: true });
 
   server.post('/', (request, reply) => {
-    if (request.body.Key?.contains('raw')) {
+    console.log(request.body);
+    if (request.body.Key?.includes('raw')) {
       processPredict(request.body.Key).then(() => reply.send({ status: 'ok' }));
-    } else if (request.body.Key?.contains('identified')) {
+    } else if (request.body.Key?.includes('identified')) {
       processTrain().then(() => reply.send({ status: 'ok' }));
-    } else if (request.body.Key?.contains('model')) {
-      console.log('Updating model');
+    } else if (request.body.Key?.includes('model')) {
       getModel().then(() => reply.send({ status: 'ok' }));
     } else {
       reply.send({ status: 'ok' })
@@ -219,6 +219,17 @@ const upload = async (file, type, ts, who) => {
   const cmd = new PutObjectCommand({
     Bucket: config.BUCKET_NAME,
     Key: '/' + type + '/' + who + ts + '.jpeg',
+    Body: file,
+  });
+
+  return s3Client.send(cmd).then(() => file);
+};
+
+const uploadKey = async (file, key) => {
+  if (!file) return;
+  const cmd = new PutObjectCommand({
+    Bucket: config.BUCKET_NAME,
+    Key: key,
     Body: file,
   });
 
