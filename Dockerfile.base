@@ -1,0 +1,11 @@
+FROM urielch/opencv-nodejs
+
+ENV NODE_PATH=/usr/lib/node_modules
+
+RUN mkdir -p /app
+
+COPY package.json /app
+COPY package-lock.json /app
+
+WORKDIR /app
+RUN npm i

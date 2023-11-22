@@ -1,8 +1,7 @@
-FROM urielch/opencv-nodejs
+FROM pedromol/zerozerocat:base
 
 ENV NODE_PATH=/usr/lib/node_modules
 
-COPY . /app
+COPY index.js /app
 
 WORKDIR /app
-RUN npm i

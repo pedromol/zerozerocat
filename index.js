@@ -56,8 +56,13 @@ const processPredict = async (path) => {
   const key = path.replace(config.BUCKET_NAME + '/', '');
   return download(key)
     .then(predict)
-    .then((rst) => upload(rst.image, rst.who == 'Multi' ? rst.who : 'identified', ts, rst.who))
-    .then((img) => bot.sendPhoto(config.TELEGRAM_CHAT, img).catch(() => console.log('Failed to send telegram photo')));
+    .then((rst) => {
+      let result = upload(rst.originalImage, 'identified', ts, rst.who);
+      if (rst.who) {
+        result = result.then(bot.sendPhoto(config.TELEGRAM_CHAT, rst.image).catch(() => console.log('Failed to send telegram photo')));
+      }
+      return result;
+    });
 };
 
 const processTrain = async () => {
@@ -182,6 +187,7 @@ const predict = async (img) => {
 
   const rst = {
     image: cv.imencode('.jpeg', image),
+    originalImage: img,
   }
 
   switch (identified) {
