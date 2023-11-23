@@ -1,4 +1,4 @@
-FROM pedromol/zerozerocat:base
+FROM pedromol/zerozerocat:deps
 
 ENV NODE_PATH=/usr/lib/node_modules
 

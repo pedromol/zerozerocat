@@ -48,7 +48,7 @@ const s3Client = new S3Client({
 
 const bot = new TelegramBot(config.TELEGRAM_TOKEN, { polling: false });
 
-const classifier = new cv.CascadeClassifier(cv.HAAR_FRONTALCATFACE_EXTENDED);
+const classifier = new cv.CascadeClassifier('./haarcascade_frontalcatface_extended.xml');
 
 const processPredict = async (path) => {
   console.log(`Processing prediction for ${path}`);
@@ -61,6 +61,7 @@ const processPredict = async (path) => {
       if (rst.who) {
         result = result.then(bot.sendPhoto(config.TELEGRAM_CHAT, rst.image).catch(() => console.log('Failed to send telegram photo')));
       }
+      console.log(`Prediction result: ${rst.who}`);
       return result;
     });
 };
@@ -81,7 +82,6 @@ const listen = async () => {
   const server = fastify({ logger: true });
 
   server.post('/', (request, reply) => {
-    console.log(request.body);
     if (request.body.Key?.includes('raw')) {
       processPredict(request.body.Key).then(() => reply.send({ status: 'ok' }));
     } else if (request.body.Key?.includes('identified')) {
@@ -101,7 +101,7 @@ const listen = async () => {
 const listFiles = async () => {
   const cmd = new ListObjectsV2Command({
     Bucket: config.BUCKET_NAME,
-    Prefix: 'identified/',
+    Prefix: 'identified/L',
   });
 
   return s3Client.send(cmd).then(async (res) => res.Contents.map((f) => f.Key));
@@ -122,7 +122,6 @@ const genModel = async () => {
     .map(file => {
       const label = config.NAME_MAPPINGS.findIndex(name => file.includes(name));
       if (label < 0) {
-        console.log('Ignoring file by nameMapping: ' + file)
         return undefined;
       }
 
@@ -131,7 +130,6 @@ const genModel = async () => {
 
       const faceRects = classifier.detectMultiScale(originalImage).objects;
       if (!faceRects.length) {
-        console.log('Ignoring file by faceRects: ' + file)
         return undefined;
       }
 
