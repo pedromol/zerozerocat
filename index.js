@@ -3,7 +3,7 @@ const util = require('util');
 const path = require('path');
 const fastify = require('fastify')
 const cv = require('@u4/opencv4nodejs');
-const { S3Client, PutObjectCommand, GetObjectCommand, ListObjectsV2Command } = require('@aws-sdk/client-s3');
+const { S3Client, PutObjectCommand, GetObjectCommand, ListObjectsV2Command, DeleteObjectCommand } = require('@aws-sdk/client-s3');
 const TelegramBot = require('node-telegram-bot-api');
 const writeFile = util.promisify(fs.writeFile);
 
@@ -46,7 +46,7 @@ const s3Client = new S3Client({
   endpoint: config.BUCKET_ENDPOINT,
 });
 
-const bot = new TelegramBot(config.TELEGRAM_TOKEN, { polling: false });
+const bot = new TelegramBot(config.TELEGRAM_TOKEN, { polling: true });
 
 const classifier = new cv.CascadeClassifier('./haarcascade_frontalcatface_extended.xml');
 
@@ -59,7 +59,10 @@ const processPredict = async (path) => {
     .then((rst) => {
       let result = upload(rst.originalImage, 'identified', ts, rst.who);
       if (rst.who) {
-        result = result.then(bot.sendPhoto(config.TELEGRAM_CHAT, rst.image).catch(() => console.log('Failed to send telegram photo')));
+        result = result
+          .then(bot.sendPhoto(config.TELEGRAM_CHAT, rst.image)
+            .then(msg => uploadKey(Buffer.from(''), `/message/${msg.message_id}-${rst.who}${ts}`))
+            .catch(() => console.log('Failed to send telegram photo')));
       }
       console.log(`Prediction result: ${rst.who}`);
       return result;
@@ -69,7 +72,7 @@ const processPredict = async (path) => {
 const processTrain = async () => {
   console.log(`Training model`)
   return Promise.resolve(fs.mkdirSync(basePath, { recursive: true }))
-    .then(listFiles)
+    .then(() => listFiles('identified/L'))
     .then(getFiles)
     .then(p => Promise.all(p))
     .then(genModel)
@@ -98,13 +101,16 @@ const listen = async () => {
   });
 };
 
-const listFiles = async () => {
+const listFiles = async (prefix) => {
   const cmd = new ListObjectsV2Command({
     Bucket: config.BUCKET_NAME,
-    Prefix: 'identified/L',
+    Prefix: prefix,
   });
 
-  return s3Client.send(cmd).then(async (res) => res.Contents.map((f) => f.Key));
+  return s3Client.send(cmd).then(async (res) => {
+    if (res.KeyCount < 1) return [];
+    return res.Contents.map((f) => f.Key)
+  });
 };
 
 const getFiles = async (files) => {
@@ -239,5 +245,37 @@ const uploadKey = async (file, key) => {
 
   return s3Client.send(cmd).then(() => file);
 };
+
+const removeKey = async (key) => {
+  if (!key) return;
+  const cmd = new DeleteObjectCommand({
+    Bucket: config.BUCKET_NAME,
+    Key: key,
+  });
+
+  return s3Client.send(cmd).then(() => key);
+}
+
+bot.on('message', (msg) => {
+  if (msg.chat.id == config.TELEGRAM_CHAT && msg.reply_to_message?.message_id && msg.text?.toLowerCase().includes('errado')) {
+    listFiles(`message/${msg.reply_to_message.message_id}`).then(ids => {
+      if (ids.length != 1) {
+        return bot.sendMessage(config.TELEGRAM_CHAT, 'id not found :(', { reply_to_message_id: msg.message_id });
+      }
+      const original = ids[0].split('-').at(-1);
+      const name = config.NAME_MAPPINGS.filter(n => original.includes(n));
+      if (name.length != 1) {
+        return bot.sendMessage(config.TELEGRAM_CHAT, 'name not found :(', { reply_to_message_id: msg.message_id });
+      }
+      const ts = original.replace(name[0], '');
+      const oldKey = `identified/${original}.jpeg`;
+      download(oldKey).then((file) => {
+        return removeKey(oldKey)
+          .then(() => upload(file, 'identified', ts, 'undefined'))
+          .then(() => bot.sendMessage(config.TELEGRAM_CHAT, 'ooooh quei', { reply_to_message_id: msg.message_id }))
+      }).catch(() => bot.sendMessage(config.TELEGRAM_CHAT, 'already done', { reply_to_message_id: msg.message_id }))
+    })
+  }
+});
 
 getModel().then(listen);
