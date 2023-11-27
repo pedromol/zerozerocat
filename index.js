@@ -257,7 +257,9 @@ const removeKey = async (key) => {
 }
 
 bot.on('message', (msg) => {
-  if (msg.chat.id == config.TELEGRAM_CHAT && msg.reply_to_message?.message_id && msg.text?.toLowerCase().includes('errado')) {
+  if (msg.chat.id == config.TELEGRAM_CHAT && msg.reply_to_message?.message_id) {
+    const newWho = [...config.NAME_MAPPINGS, 'errado'].find(w => w == msg.text);
+    if (!newWho) return;
     listFiles(`message/${msg.reply_to_message.message_id}`).then(ids => {
       if (ids.length != 1) {
         return bot.sendMessage(config.TELEGRAM_CHAT, 'id not found :(', { reply_to_message_id: msg.message_id });
@@ -267,11 +269,14 @@ bot.on('message', (msg) => {
       if (name.length != 1) {
         return bot.sendMessage(config.TELEGRAM_CHAT, 'name not found :(', { reply_to_message_id: msg.message_id });
       }
+      if (name[0] == newWho) {
+        return bot.sendMessage(config.TELEGRAM_CHAT, 'hey! it\'s the same I predicted!', { reply_to_message_id: msg.message_id });
+      }
       const ts = original.replace(name[0], '');
       const oldKey = `identified/${original}.jpeg`;
       download(oldKey).then((file) => {
         return removeKey(oldKey)
-          .then(() => upload(file, 'identified', ts, 'undefined'))
+          .then(() => upload(file, 'identified', ts, newWho == 'errado' ? 'undefined' : newWho))
           .then(() => bot.sendMessage(config.TELEGRAM_CHAT, 'ooooh quei', { reply_to_message_id: msg.message_id }))
       }).catch(() => bot.sendMessage(config.TELEGRAM_CHAT, 'already done', { reply_to_message_id: msg.message_id }))
     })
