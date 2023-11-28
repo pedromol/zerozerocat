@@ -166,6 +166,8 @@ const predict = async (img) => {
   let identified = 0;
   let who = undefined;
 
+  const whos = [];
+
   classified.objects.forEach((faceRect, i) => {
     if (classified.numDetections[i] < config.MIN_DETECTIONS) {
       return;
@@ -173,6 +175,7 @@ const predict = async (img) => {
     identified++;
     const faceImg = image.getRegion(faceRect).bgrToGray();
     who = config.NAME_MAPPINGS[lbph.predict(faceImg).label];
+    whos.push(who);
 
     const rect = cv.drawDetection(
       image,
@@ -192,6 +195,10 @@ const predict = async (img) => {
   const rst = {
     image: cv.imencode('.jpeg', image),
     originalImage: img,
+  }
+
+  if (new Set(whos).size != identified) {
+    identified = 0;
   }
 
   switch (identified) {
