@@ -60,7 +60,7 @@ const processPredict = async (path) => {
       let result = upload(rst.originalImage, 'identified', ts, rst.who);
       if (rst.who) {
         result = result
-          .then(bot.sendPhoto(config.TELEGRAM_CHAT, rst.image)
+          .then(bot.sendPhoto(config.TELEGRAM_CHAT, rst.image, {caption: rst.who})
             .then(msg => uploadKey(Buffer.from(''), `/message/${msg.message_id}-${rst.who}${ts}`))
             .catch(() => console.log('Failed to send telegram photo')));
       }
