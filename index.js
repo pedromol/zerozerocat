@@ -17,6 +17,7 @@ const config = {
   NAME_MAPPINGS: process.env['NAME_MAPPINGS']?.split(','),
   TELEGRAM_TOKEN: process.env['TELEGRAM_TOKEN'],
   TELEGRAM_CHAT: process.env['TELEGRAM_CHAT'],
+  TELEGRAM_ALT_CHAT: process.env['TELEGRAM_ALT_CHAT'],
   HTTP_PORT: process.env['HTTP_PORT'],
 };
 
@@ -57,15 +58,10 @@ const processPredict = async (path) => {
   return download(key)
     .then(predict)
     .then((rst) => {
-      let result = upload(rst.originalImage, 'identified', ts, rst.who);
-      if (rst.who) {
-        result = result
-          .then(bot.sendPhoto(config.TELEGRAM_CHAT, rst.image, {caption: rst.who})
+      return upload(rst.originalImage, 'identified', ts, rst.who)
+          .then(bot.sendPhoto(rst.who ? config.TELEGRAM_CHAT : config.TELEGRAM_ALT_CHAT, rst.image, {caption: rst.who})
             .then(msg => uploadKey(Buffer.from(''), `/message/${msg.message_id}-${rst.who}${ts}`))
             .catch(() => console.log('Failed to send telegram photo')));
-      }
-      console.log(`Prediction result: ${rst.who}`);
-      return result;
     });
 };
 
@@ -200,6 +196,8 @@ const predict = async (img) => {
   if (new Set(whos).size != identified) {
     identified = 0;
   }
+
+  console.log(`Prediction result: ${who}`);
 
   switch (identified) {
     case 0:
