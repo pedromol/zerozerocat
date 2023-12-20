@@ -31,6 +31,9 @@ console.log(`Starting with config:
 `+ JSON.stringify({ ...config, BUCKET_SECRET_ACCESS_KEY: '***', TELEGRAM_TOKEN: '***' }, undefined, '  '));
 
 const basePath = './trainer';
+const lock = {
+  isTranning: false,
+};
 
 const s3Client = new S3Client({
   credentials: {
@@ -59,14 +62,19 @@ const processPredict = async (path) => {
     .then(predict)
     .then((rst) => {
       return upload(rst.originalImage, 'identified', ts, rst.who)
-          .then(bot.sendPhoto(rst.who ? config.TELEGRAM_CHAT : config.TELEGRAM_ALT_CHAT, rst.image, {caption: rst.who})
-            .then(msg => uploadKey(Buffer.from(''), `/message/${msg.message_id}-${rst.who}${ts}`))
-            .catch(() => console.log('Failed to send telegram photo')));
+        .then(bot.sendPhoto(rst.who ? config.TELEGRAM_CHAT : config.TELEGRAM_ALT_CHAT, rst.image, { caption: rst.who })
+          .then(msg => uploadKey(Buffer.from(''), `/message/${msg.message_id}-${rst.who}${ts}`))
+          .catch(() => console.log('Failed to send telegram photo')));
     });
 };
 
 const processTrain = async () => {
-  console.log(`Training model`)
+  if (lock.isTranning) {
+    console.log(`Already training model`);
+    return Promise.resolve();
+  }
+  lock.isTranning = true;
+  console.log(`Training model`);
   return Promise.resolve(fs.mkdirSync(basePath, { recursive: true }))
     .then(() => listFiles('identified/L'))
     .then(getFiles)
@@ -74,7 +82,8 @@ const processTrain = async () => {
     .then(genModel)
     .then(() => uploadKey(fs.readFileSync('./trainer.yaml'), '/model/model.yaml'))
     .then(() => fs.rmSync(basePath, { recursive: true }))
-    .then(() => fs.rmSync('./trainer.yaml'));
+    .then(() => fs.rmSync('./trainer.yaml'))
+    .finally(() => lock.isTranning = false);
 };
 
 const listen = async () => {
@@ -83,7 +92,7 @@ const listen = async () => {
   server.post('/', (request, reply) => {
     if (request.body.Key?.includes('raw')) {
       processPredict(request.body.Key).then(() => reply.send({ status: 'ok' }));
-    } else if (request.body.Key?.includes('identified')) {
+    } else if (request.body.Key?.includes('identified/L')) {
       processTrain().then(() => reply.send({ status: 'ok' }));
     } else if (request.body.Key?.includes('model')) {
       getModel().then(() => reply.send({ status: 'ok' }));
@@ -116,8 +125,6 @@ const getFiles = async (files) => {
 }
 
 const genModel = async () => {
-  const classifier = new cv.CascadeClassifier(cv.HAAR_FRONTALCATFACE_EXTENDED);
-
   const imgFiles = fs.readdirSync(basePath);
 
   const trainData = imgFiles
