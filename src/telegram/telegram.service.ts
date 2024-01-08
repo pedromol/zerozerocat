@@ -13,10 +13,8 @@ export class TelegramService {
     private readonly configService: ConfigService,
     private readonly storageService: StorageService,
   ) {
-    if (global.telegram) return global.telegram;
-    global.telegram = this;
     this.bot = new TelegramBot(this.configService.get('TELEGRAM_TOKEN'), {
-      polling: true,
+      polling: false,
     });
     this.bot.on('message', (msg) => this.process(msg));
   }
