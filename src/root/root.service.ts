@@ -26,6 +26,7 @@ export class RootService {
       .download('/model/model.yaml')
       .then((model: Buffer) => this.opencvService.loadLBPH(model))
       .then(() => (this.modelLoaded = true))
+      .then(() => this.loggerService.log(`Model updated`))
       .then(() => new RootResponseDto('ok'));
   }
 
@@ -41,9 +42,12 @@ export class RootService {
       )
       .then((result) => {
         const [opencv, onnx] = result;
+        const [who] = opencv;
         const hasCat =
           onnx.findIndex((predicate) => predicate[0] == 'cat' && predicate[1] >= 0.5) >= 0;
+
         if (!hasCat) {
+          this.loggerService.log(`Prediction for ${opencv[0]} rejected by YOLO`);
           opencv[0] = undefined;
         }
         return this.storageService
@@ -55,7 +59,7 @@ export class RootService {
                   ? this.configService.get('TELEGRAM_CHAT')
                   : this.configService.get('TELEGRAM_ALT_CHAT'),
                 opencv[1],
-                opencv[0],
+                who,
               )
               .then((msg) =>
                 this.storageService.upload(

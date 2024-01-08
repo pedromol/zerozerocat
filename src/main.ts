@@ -10,6 +10,10 @@ async function bootstrap() {
   });
   app.useLogger(app.get(Logger));
   const config: ConfigService<EnvironmentVariables> = app.get(ConfigService);
+
+  // https://github.com/yagop/node-telegram-bot-api/blob/master/doc/usage.md#file-options-metadata
+  process.env['NTBA_FIX_350'] = 'true';
+
   return app.listen(config.get('HTTP_PORT'), '0.0.0.0');
 }
 bootstrap();

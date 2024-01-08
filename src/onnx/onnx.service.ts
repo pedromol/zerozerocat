@@ -186,7 +186,9 @@ export class OnnxService {
   public async process(buf: Buffer): Promise<[string, number][]> {
     const start = Date.now();
     const boxes = await this.detect_objects_on_image(buf);
-    this.loggerService.log(`ONNX Time elapsed: ${Date.now() - start} ms`);
+    this.loggerService.log(
+      `YOLO Time elapsed: ${Date.now() - start} ms with result ${boxes.map((b) => [b[4], b[5]])}`,
+    );
     return boxes.map((b) => [b[4], b[5]]);
   }
 }

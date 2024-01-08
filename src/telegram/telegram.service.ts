@@ -13,14 +13,21 @@ export class TelegramService {
     private readonly configService: ConfigService,
     private readonly storageService: StorageService,
   ) {
+    if (global.telegram) return global.telegram;
+    global.telegram = this;
     this.bot = new TelegramBot(this.configService.get('TELEGRAM_TOKEN'), {
-      polling: false,
+      polling: true,
     });
-    this.bot.on('message', this.process);
+    this.bot.on('message', (msg) => this.process(msg));
   }
 
   public async sendPhoto(chatId: string, photo: Buffer, caption: string) {
-    return this.bot.sendPhoto(chatId, photo, { caption });
+    return this.bot.sendPhoto(
+      chatId,
+      photo,
+      { caption },
+      { filename: `${Date.now()}.jpeg`, contentType: 'image/jpeg' },
+    );
   }
 
   private process(msg: {
@@ -34,7 +41,7 @@ export class TelegramService {
         msg.chat.id == this.configService.get('TELEGRAM_ALT_CHAT')) &&
       msg.reply_to_message?.message_id
     ) {
-      const newWho = [...this.configService.get('NAME_MAPPINGS'), 'errado'].find(
+      const newWho = [...this.configService.get('NAME_MAPPINGS').split(','), 'errado'].find(
         (w) => w == msg.text,
       );
       if (!newWho) return;
@@ -45,9 +52,9 @@ export class TelegramService {
           });
         }
         const original = ids[0].split('-').at(-1);
-        const name = this.configService
-          .get('NAME_MAPPINGS')
-          .filter((n: string) => original.includes(n));
+        const name = [...this.configService.get('NAME_MAPPINGS').split(','), 'undefined'].filter(
+          (n: string) => original.includes(n),
+        );
         if (name.length != 1) {
           return this.bot.sendMessage(msg.chat.id, 'name not found :(', {
             reply_to_message_id: msg.message_id,

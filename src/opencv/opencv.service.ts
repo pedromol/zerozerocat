@@ -4,7 +4,6 @@ import { Logger } from 'nestjs-pino';
 import {
   CascadeClassifier,
   LBPHFaceRecognizer,
-  imread,
   imdecode,
   drawDetection,
   Vec3,
@@ -33,28 +32,30 @@ export class OpencvService {
     return this.lbph;
   }
 
-  public async generateModel(imgs: Map<string, Buffer>): Promise<Buffer> {
-    const trainData = [];
-    for (const i in imgs) {
-      const label = this.configService
-        .get('NAME_MAPPINGS')
-        .findIndex((name: string) => i.includes(name));
-      if (label < 0) {
-        continue;
-      }
+  public async generateModel(imgs: [string, Buffer][]): Promise<Buffer> {
+    const trainData = imgs
+      .map((val) => {
+        const label = this.configService
+          .get('NAME_MAPPINGS')
+          .split(',')
+          .findIndex((name: string) => val[0].includes(name));
+        if (label < 0) {
+          return undefined;
+        }
 
-      const originalImage = imread(imgs[i]);
+        const originalImage = imdecode(val[1]);
 
-      const faceRects = this.classifier.detectMultiScale(originalImage).objects;
-      if (!faceRects.length) {
-        continue;
-      }
+        const faceRects = this.classifier.detectMultiScale(originalImage).objects;
+        if (!faceRects.length) {
+          return undefined;
+        }
 
-      trainData.push({
-        grayImage: originalImage.getRegion(faceRects[0]).bgrToGray().resize(80, 80),
-        label,
-      });
-    }
+        return {
+          grayImage: originalImage.getRegion(faceRects[0]).bgrToGray().resize(80, 80),
+          label,
+        };
+      })
+      .filter((t) => t);
 
     const lbph = new LBPHFaceRecognizer();
     lbph.train(
@@ -68,6 +69,7 @@ export class OpencvService {
   }
 
   public async predict(img: Buffer): Promise<[string, Buffer]> {
+    const start = Date.now();
     const image = imdecode(img);
     if (image.empty) return Promise.resolve(['empty', img]);
     const classified = this.classifier.detectMultiScale(image.bgrToGray());
@@ -83,7 +85,7 @@ export class OpencvService {
       }
       identified++;
       const faceImg = image.getRegion(faceRect).bgrToGray();
-      who = this.configService.get('NAME_MAPPINGS')[this.lbph.predict(faceImg).label];
+      who = this.configService.get('NAME_MAPPINGS').split(',')[this.lbph.predict(faceImg).label];
       whos.push(who);
 
       const rect = drawDetection(image, faceRect, {
@@ -99,9 +101,8 @@ export class OpencvService {
       identified = 0;
     }
 
-    this.loggerService.log(`Prediction result: ${who}`);
     const resultImage = imencode('.jpeg', image);
-
+    this.loggerService.log(`Cascade Time elapsed: ${Date.now() - start} ms with result ${who}`);
     switch (identified) {
       case 0:
         return [undefined, resultImage];

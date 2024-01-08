@@ -37,3 +37,5 @@ lerna-debug.log*
 models/*
 !models/haarcascade_frontalcatface_extended.xml
 !models/yolov8n.onnx
+
+.env

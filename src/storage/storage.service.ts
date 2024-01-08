@@ -41,12 +41,10 @@ export class StorageService {
       });
   }
 
-  public async downloadBatch(files: string[]): Promise<Map<string, Buffer>> {
-    const result: Map<string, Buffer> = new Map<string, Buffer>();
-    files.forEach((file: string) =>
-      this.download(file).then((buff: Buffer) => (result[file.split('/').at(-1)] = buff)),
+  public async downloadBatch(files: string[]): Promise<[string, Buffer][]> {
+    return Promise.all(files.map((file: string) => this.download(file))).then((bufs) =>
+      bufs.map((b, i) => [files[i].split('/').at(-1), b]),
     );
-    return result;
   }
 
   public async download(key: string): Promise<Buffer> {

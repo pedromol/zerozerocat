@@ -42,9 +42,7 @@ export class EnvironmentVariables {
     Object.keys(process.env).forEach((key: string) => {
       this[key] = process.env[key];
     });
-
     this.NAME_MAPPINGS = (this.NAME_MAPPINGS as unknown as string)?.split(',');
-
     try {
       validate(this, EnvironmentVariables, { allowUnknown: true });
     } catch (err: unknown) {
