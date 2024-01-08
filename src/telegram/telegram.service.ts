@@ -14,7 +14,7 @@ export class TelegramService {
     private readonly storageService: StorageService,
   ) {
     this.bot = new TelegramBot(this.configService.get('TELEGRAM_TOKEN'), {
-      polling: false,
+      polling: true,
     });
     this.bot.on('message', (msg) => this.process(msg));
   }
