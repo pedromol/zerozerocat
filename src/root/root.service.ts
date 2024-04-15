@@ -6,6 +6,7 @@ import { OpencvService } from '../opencv/opencv.service';
 import { OnnxService } from '../onnx/onnx.service';
 import { StorageService } from '../storage/storage.service';
 import { TelegramService } from '../telegram/telegram.service';
+import { HomeassistantService } from '../homeassistant/homeassistant.service';
 
 @Injectable()
 export class RootService {
@@ -18,7 +19,8 @@ export class RootService {
     private readonly opencvService: OpencvService,
     private readonly onnxService: OnnxService,
     private readonly telegramService: TelegramService,
-  ) {}
+    private readonly homeassistantService: HomeassistantService,
+  ) { }
 
   private async updateModel(): Promise<RootResponseDto> {
     this.loggerService.log(`Updating model`);
@@ -43,13 +45,7 @@ export class RootService {
       .then((result) => {
         const [opencv, onnx] = result;
         const [who] = opencv;
-        const hasCat =
-          onnx.findIndex((predicate) => predicate[0] == 'cat' && predicate[1] >= 0.5) >= 0;
-
-        if (!hasCat) {
-          this.loggerService.log(`Prediction for ${opencv[0]} rejected by YOLO`);
-          opencv[0] = undefined;
-        }
+        this.loggerService.log(`Prediction for ${opencv[0]} is ${onnx}`);
         return this.storageService
           .upload(opencv[1], `/identified/${opencv[0]}${ts}.jpeg`)
           .then(() =>
@@ -90,11 +86,27 @@ export class RootService {
       .then(() => new RootResponseDto('ok'));
   }
 
+  private async presence(key: string): Promise<void> {
+    const person = key.match(/identified\/(.*?)\d+\.jpeg/)[1];
+    const date = new Date().toLocaleString('pt-BR', {
+      hour12: false,
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+    });
+    this.loggerService.log(`Presence detected: ${person} at ${date}`);
+    return this.homeassistantService.update(person, date)
+  }
+
   async route(dto: RootDto): Promise<RootResponseDto> {
     if (dto.Key?.includes('raw')) {
       return this.predict(dto.Key);
     } else if (dto.Key?.includes('identified/L')) {
-      return this.train();
+      return Promise.all([this.train(), this.presence(dto.Key)])[0];
+
     } else if (dto.Key?.includes('model')) {
       return this.updateModel();
     }

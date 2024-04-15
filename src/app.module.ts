@@ -8,6 +8,7 @@ import { TelegramModule } from './telegram/telegram.module';
 import { OnnxModule } from './onnx/onnx.module';
 import { OpencvModule } from './opencv/opencv.module';
 import { StorageModule } from './storage/storage.module';
+import { HomeassistantModule } from './homeassistant/homeassistant.module';
 
 @Module({
   imports: [
@@ -20,6 +21,7 @@ import { StorageModule } from './storage/storage.module';
     OnnxModule,
     OpencvModule,
     StorageModule,
+    HomeassistantModule,
   ],
 })
 export class AppModule {}
