@@ -3,10 +3,8 @@ import { RootService } from './root.service';
 import { ConfigModule } from '@nestjs/config';
 import { LoggerModule } from '../logger/logger.module';
 import { OpencvModule } from '../opencv/opencv.module';
-import { OnnxModule } from '../onnx/onnx.module';
 import { StorageModule } from '../storage/storage.module';
 import { TelegramModule } from '../telegram/telegram.module';
-import { HomeassistantModule } from '../homeassistant/homeassistant.module';
 
 describe('RootService', () => {
   let service: RootService;
@@ -19,9 +17,7 @@ describe('RootService', () => {
         ConfigModule,
         StorageModule,
         OpencvModule,
-        OnnxModule,
         TelegramModule,
-        HomeassistantModule,
       ],
     }).compile();
 

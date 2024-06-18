@@ -8,7 +8,6 @@ COPY package* /app/
 COPY tsconfig* /app/
 COPY nest-cli.json /app/
 COPY models/haarcascade_frontalcatface_extended.xml /app/models/
-COPY models/yolov8x.onnx /app/models/
 
 WORKDIR /app
 RUN npm i --production --prune && \

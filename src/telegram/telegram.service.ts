@@ -20,13 +20,19 @@ export class TelegramService {
     this.bot.setWebHook(`${this.configService.get('TELEGRAM_ADDRESS')}catoso`);
   }
 
-  public async sendPhoto(chatId: string, photo: Buffer, caption: string) {
+  public async sendPhoto(chatId: string, photo: Buffer, caption: string, retry = 0) {
     return this.bot.sendPhoto(
       chatId,
       photo,
       { caption },
       { filename: `${Date.now()}.jpeg`, contentType: 'image/jpeg' },
-    );
+    ).catch((err) => {
+      retry++
+      if (retry < 5) {
+        return this.sendPhoto(chatId, photo, caption, retry);
+      }
+      return err
+    })
   }
 
   public process(msg: {

@@ -3,10 +3,8 @@ import { RootDto, RootResponseDto } from './dto/root.dto';
 import { Logger } from 'nestjs-pino';
 import { ConfigService } from '@nestjs/config';
 import { OpencvService } from '../opencv/opencv.service';
-import { OnnxService } from '../onnx/onnx.service';
 import { StorageService } from '../storage/storage.service';
 import { TelegramService } from '../telegram/telegram.service';
-import { HomeassistantService } from '../homeassistant/homeassistant.service';
 
 @Injectable()
 export class RootService {
@@ -17,9 +15,7 @@ export class RootService {
     private readonly configService: ConfigService,
     private readonly storageService: StorageService,
     private readonly opencvService: OpencvService,
-    private readonly onnxService: OnnxService,
     private readonly telegramService: TelegramService,
-    private readonly homeassistantService: HomeassistantService,
   ) { }
 
   private async updateModel(): Promise<RootResponseDto> {
@@ -40,12 +36,10 @@ export class RootService {
     return this.storageService
       .download(key)
       .then((file: Buffer) =>
-        Promise.all([this.opencvService.predict(file), this.onnxService.process(file)]),
+        this.opencvService.predict(file),
       )
-      .then((result) => {
-        const [opencv, onnx] = result;
+      .then((opencv) => {
         const [who] = opencv;
-        this.loggerService.log(`Prediction for ${opencv[0]} is ${onnx}`);
         return this.storageService
           .upload(opencv[1], `/identified/${opencv[0]}${ts}.jpeg`)
           .then(() =>
@@ -63,7 +57,7 @@ export class RootService {
                   `/message/${msg.message_id}-${opencv[0]}${ts}`,
                 ),
               )
-              .catch(() => this.loggerService.log('Failed to send telegram photo')),
+              .catch((err) => this.loggerService.log(`Failed to send telegram photo: ${err}`)),
           );
       })
       .then(() => new RootResponseDto('ok'));
@@ -86,27 +80,11 @@ export class RootService {
       .then(() => new RootResponseDto('ok'));
   }
 
-  private async presence(key: string): Promise<void> {
-    const person = key.match(/identified\/(.*?)\d+\.jpeg/)[1];
-    const date = new Date().toLocaleString('pt-BR', {
-      hour12: false,
-      hour: '2-digit',
-      minute: '2-digit',
-      second: '2-digit',
-      day: '2-digit',
-      month: '2-digit',
-      year: 'numeric',
-    });
-    this.loggerService.log(`Presence detected: ${person} at ${date}`);
-    return this.homeassistantService.update(person, date)
-  }
-
   async route(dto: RootDto): Promise<RootResponseDto> {
     if (dto.Key?.includes('raw')) {
       return this.predict(dto.Key);
     } else if (dto.Key?.includes('identified/L')) {
-      return Promise.all([this.train(), this.presence(dto.Key)])[0];
-
+      return this.train();
     } else if (dto.Key?.includes('model')) {
       return this.updateModel();
     }
