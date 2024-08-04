@@ -4,10 +4,11 @@ ENV NODE_PATH=/usr/lib/node_modules
 
 RUN mkdir -p /app
 
-COPY package.json /app
-COPY package-lock.json /app
-COPY haarcascade_frontalcatface.xml /app
-COPY haarcascade_frontalcatface_extended.xml /app
+COPY package* /app/
+COPY tsconfig* /app/
+COPY nest-cli.json /app/
+COPY models/haarcascade_frontalcatface_extended.xml /app/models/
 
 WORKDIR /app
-RUN npm i
+RUN npm i --production --prune && \
+    npm i -g @nestjs/cli

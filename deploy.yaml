@@ -23,11 +23,17 @@ spec:
      containers:
        - name: zerozerocat
          image: pedromol/zerozerocat
+         ports:
+         - containerPort: 8080
          args:
-          - /app/index.js
+          - start
+          - run
+          - start:prod
          command:
-          - node
+          - npm
          env:
+          - name: NODE_ENV
+            value : 'production'
           - name: BUCKET_ACCESS_KEY_ID
             value : 'xxxxxxxx'
           - name: BUCKET_SECRET_ACCESS_KEY
@@ -48,6 +54,8 @@ spec:
             value : 'xxxxxx'
           - name: HTTP_PORT
             value : 'xxxxxx'
+          - name: TELEGRAM_ALT_CHAT
+            value: 'xxxxxx'
 ---
 apiVersion: v1
 kind: Service
