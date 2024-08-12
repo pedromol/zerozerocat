@@ -16,8 +16,11 @@ export class TelegramService {
     this.bot = new TelegramBot(this.configService.get('TELEGRAM_TOKEN'), {
       polling: false,
     });
-    // this.bot.on('message', (msg) => this.process(msg));
-    this.bot.setWebHook(`${this.configService.get('TELEGRAM_ADDRESS')}catoso`);
+    if (this.configService.get('TELEGRAM_POLLING') == 'true') {
+      this.bot.on('message', (msg) => this.process(msg));
+    } else {
+      this.bot.setWebHook(`${this.configService.get('TELEGRAM_ADDRESS')}catoso`);
+    }
   }
 
   public async sendPhoto(chatId: string, photo: Buffer, caption: string, retry = 0) {
