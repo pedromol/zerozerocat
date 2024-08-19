@@ -63,6 +63,26 @@ export class RootService {
       .then(() => new RootResponseDto('ok'));
   }
 
+  private async normalize(names: string[]): Promise<string[]> {
+    const labels: string[] = this.configService
+      .get('NAME_MAPPINGS')
+      .split(',');
+    const result: string[][] = new Array(labels.length).fill(null).map(() => []);
+    labels.forEach((label, index) => {
+      names.forEach((name: string) => {
+        if (name.startsWith(`identified/${label}`)) {
+          result[index].push(name);
+        }
+      })
+    });
+    const min = result.reduce((p, c) => Math.min(p, c.length), Infinity);
+    this.loggerService.log(`Training model with ${min * labels.length} samples`);
+    return result.map(v => {
+      v.splice(0, v.length - min);
+      return v;
+    }).flat();
+  }
+
   private async train(): Promise<RootResponseDto> {
     if (this.lock) {
       this.loggerService.log(`Already training model`);
@@ -73,6 +93,7 @@ export class RootService {
     this.loggerService.log(`Training model`);
     return this.storageService
       .listFiles('identified/L')
+      .then((names: string[]) => this.normalize(names))
       .then((names: string[]) => this.storageService.downloadBatch(names))
       .then((files) => this.opencvService.generateModel(files))
       .then((model) => this.storageService.upload(model, '/model/model.yaml'))
