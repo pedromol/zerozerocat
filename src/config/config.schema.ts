@@ -41,11 +41,8 @@ export class EnvironmentVariables {
   @mustBe(a.string().required())
   TELEGRAM_ALT_CHAT: string;
 
-  @mustBe(a.string().required())
-  HASS_TOKEN: string;
-
-  @mustBe(a.string().required())
-  HASS_ENDPOINT: string;
+  @mustBe(a.string())
+  TELEGRAM_POLLING: string;
 
   constructor() {
     Object.keys(process.env).forEach((key: string) => {

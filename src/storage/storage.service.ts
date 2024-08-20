@@ -27,19 +27,25 @@ export class StorageService {
     });
   }
 
-  public async listFiles(prefix: string): Promise<string[]> {
+  public async listFiles(prefix: string, token?: string): Promise<string[]> {
     return this.s3Client
       .send(
         new ListObjectsV2Command({
           Bucket: this.configService.get('BUCKET_NAME'),
           Prefix: prefix,
+          ContinuationToken: token,
         }),
       )
-      .then(async (res: { KeyCount: number; Contents: Record<string, string>[] }) => {
+      .then(async (res: { KeyCount: number; Contents: Record<string, string>[], NextContinuationToken: string }) => {
         if (res.KeyCount < 1) return [];
+        if (res.NextContinuationToken) {
+          return this.listFiles(prefix, res.NextContinuationToken)
+            .then((nextFiles: string[]) => res.Contents.map((f: Record<string, string>) => f.Key).concat(nextFiles));
+        }
         return res.Contents.map((f: Record<string, string>) => f.Key);
       });
   }
+
 
   public async downloadBatch(files: string[]): Promise<[string, Buffer][]> {
     return Promise.all(files.map((file: string) => this.download(file))).then((bufs) =>
